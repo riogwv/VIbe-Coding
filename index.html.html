@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Sudoku</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2c;
+      --grid: #2a3552;
+      --text: #e8eefc;
+      --muted: #9fb0d0;
+      --accent: #6aa6ff;
+      --bad: #ff5c6a;
+      --good: #3ddc97;
+      --cell: #0f1730;
+      --cell2: #101a38;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1000px 600px at 10% 0%, #172449 0%, var(--bg) 55%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .top {
+      background: rgba(18, 26, 44, 0.85);
+      border: 1px solid rgba(106, 166, 255, 0.18);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.2px;
+    }
+
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid rgba(106, 166, 255, 0.28);
+      background: rgba(16, 26, 56, 0.55);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+      user-select: none;
+    }
+    button:hover {
+      background: rgba(106, 166, 255, 0.12);
+      border-color: rgba(106, 166, 255, 0.45);
+    }
+    button:active { transform: translateY(1px); }
+    button.primary {
+      border-color: rgba(61, 220, 151, 0.35);
+      background: rgba(61, 220, 151, 0.10);
+    }
+    button.primary:hover {
+      border-color: rgba(61, 220, 151, 0.55);
+      background: rgba(61, 220, 151, 0.16);
+    }
+
+    .status {
+      min-width: 220px;
+      text-align: right;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .status strong { color: var(--text); }
+    .status.good strong { color: var(--good); }
+    .status.bad strong { color: var(--bad); }
+
+    .boardCard {
+      background: rgba(18, 26, 44, 0.85);
+      border: 1px solid rgba(106, 166, 255, 0.18);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .board {
+      --size: min(76px, 8.5vw);
+      display: grid;
+      grid-template-columns: repeat(9, var(--size));
+      grid-template-rows: repeat(9, var(--size));
+      gap: 0;
+      justify-content: center;
+      border: 2px solid var(--grid);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .cell {
+      border: 1px solid rgba(42, 53, 82, 0.85);
+      background: linear-gradient(180deg, var(--cell), var(--cell2));
+      padding: 0;
+      position: relative;
+    }
+
+    /* thicker separators for 3x3 blocks */
+    .cell.r-border { border-right-width: 2px; }
+    .cell.b-border { border-bottom-width: 2px; }
+
+    input {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 20px;
+      text-align: center;
+      caret-color: var(--accent);
+    }
+
+    input[readonly] {
+      color: rgba(232, 238, 252, 0.90);
+      font-weight: 800;
+      cursor: default;
+      text-shadow: 0 0 0 rgba(0,0,0,0);
+    }
+
+    input.wrong {
+      color: #ffd9dc;
+      background: rgba(255, 92, 106, 0.18);
+      box-shadow: inset 0 0 0 2px rgba(255, 92, 106, 0.35);
+    }
+    input.right {
+      color: #d7ffe9;
+      background: rgba(61, 220, 151, 0.14);
+      box-shadow: inset 0 0 0 2px rgba(61, 220, 151, 0.28);
+    }
+
+    .hint {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .kbd {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: inline-block;
+      padding: 4px 8px;
+      border: 1px solid rgba(106, 166, 255, 0.26);
+      background: rgba(106, 166, 255, 0.08);
+      border-radius: 999px;
+      font-weight: 650;
+      color: var(--text);
+    }
+
+    @media (max-width: 560px) {
+      .status { text-align: left; min-width: auto; width: 100%; }
+      .controls { justify-content: flex-start; }
+      .board { --size: min(38px, 10.2vw); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        <h1>Sudoku • Generator Valid + Cek Jawaban</h1>
+        <p>Masukkan angka 1–9 pada sel kosong. Klik <strong>Cek Jawaban</strong> untuk melihat benar/salah.</p>
+      </div>
+      <div class="controls">
+        <button id="btnGenerate" class="primary" type="button">Generate Puzzle</button>
+        <button id="btnCheck" type="button">Cek Jawaban</button>
+      </div>
+      <div id="status" class="status"><strong>Status:</strong> Siap bermain.</div>
+    </div>
+
+    <div class="boardCard">
+      <div id="board" class="board" aria-label="Papan Sudoku" role="grid"></div>
+      <div class="hint">
+        <div class="kbd">
+          <span class="chip">Tip</span>
+          <span>Tekan angka untuk mengisi. Hapus dengan Backspace/Delete.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const N = 9;
+  const SUB = 3;
+
+  const boardEl = document.getElementById('board');
+  const btnGenerate = document.getElementById('btnGenerate');
+  const btnCheck = document.getElementById('btnCheck');
+  const statusEl = document.getElementById('status');
+
+  let puzzle = null;  // 9x9 (0 = kosong)
+  let solution = null; // 9x9 (isi lengkap)
+  let inputs = [];     // 9x9 input elements
+
+  function randInt(n) { return Math.floor(Math.random() * n); }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function cloneGrid(g) { return g.map(r => r.slice()); }
+
+  function isSafe(grid, r, c, val) {
+    for (let k = 0; k < N; k++) {
+      if (grid[r][k] === val) return false;
+      if (grid[k][c] === val) return false;
+    }
+    const br = Math.floor(r / SUB) * SUB;
+    const bc = Math.floor(c / SUB) * SUB;
+    for (let rr = br; rr < br + SUB; rr++) {
+      for (let cc = bc; cc < bc + SUB; cc++) {
+        if (grid[rr][cc] === val) return false;
+      }
+    }
+    return true;
+  }
+
+  function findEmpty(grid) {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        if (grid[r][c] === 0) return [r, c];
+      }
+    }
+    return null;
+  }
+
+  // Solve with backtracking. Random order to create varied solutions.
+  function solveGrid(grid) {
+    const empty = findEmpty(grid);
+    if (!empty) return true;
+    const [r, c] = empty;
+
+    const nums = shuffle([1,2,3,4,5,6,7,8,9]);
+    for (const val of nums) {
+      if (!isSafe(grid, r, c, val)) continue;
+      grid[r][c] = val;
+      if (solveGrid(grid)) return true;
+      grid[r][c] = 0;
+    }
+    return false;
+  }
+
+  function countSolutions(grid, limit) {
+    // Count solutions up to 'limit' (for uniqueness check).
+    let count = 0;
+
+    function backtrack() {
+      if (count >= limit) return;
+      const empty = findEmpty(grid);
+      if (!empty) {
+        count++;
+        return;
+      }
+      const [r, c] = empty;
+      const nums = shuffle([1,2,3,4,5,6,7,8,9]);
+
+      for (const val of nums) {
+        if (!isSafe(grid, r, c, val)) continue;
+        grid[r][c] = val;
+        backtrack();
+        grid[r][c] = 0;
+        if (count >= limit) return;
+      }
+    }
+
+    backtrack();
+    return count;
+  }
+
+  function generateSolvedBoard() {
+    const grid = Array.from({ length: N }, () => Array(N).fill(0));
+    solveGrid(grid);
+    return grid;
+  }
+
+  function makePuzzleFromSolution(solved, targetClues = 30) {
+    // Remove numbers while maintaining (at least) uniqueness (exactly one solution ideally).
+    // Minimal but practical: attempt removals in random order, check uniqueness with limit=2.
+    const grid = cloneGrid(solved);
+
+    const positions = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) positions.push([r, c]);
+    shuffle(positions);
+
+    // Ensure targetClues is within reasonable bounds
+    const minClues = 17;
+    const maxClues = 81;
+    targetClues = Math.max(minClues, Math.min(maxClues, targetClues));
+
+    let clues = 81;
+    for (const [r, c] of positions) {
+      if (clues <= targetClues) break;
+
+      const backup = grid[r][c];
+      if (backup === 0) continue;
+
+      grid[r][c] = 0;
+
+      // Uniqueness check
+      const gridCopy = cloneGrid(grid);
+      const solCount = countSolutions(gridCopy, 2);
+      if (solCount !== 1) {
+        grid[r][c] = backup; // revert
+      } else {
+        clues--;
+      }
+    }
+
+    return grid;
+  }
+
+  function setStatus(text, kind) {
+    statusEl.classList.remove('good', 'bad');
+    if (kind) statusEl.classList.add(kind);
+    statusEl.innerHTML = '<strong>Status:</strong> ' + text;
+  }
+
+  function clearBoardUI() {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const inp = inputs[r][c];
+        inp.value = '';
+        inp.classList.remove('wrong', 'right');
+      }
+    }
+  }
+
+  function buildBoardUI() {
+    boardEl.innerHTML = '';
+    inputs = Array.from({ length: N }, () => Array(N).fill(null));
+
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell'
+          + (c === 2 || c === 5 ? ' r-border' : '')
+          + (r === 2 || r === 5 ? ' b-border' : '');
+
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.inputMode = 'numeric';
+        inp.autocomplete = 'off';
+        inp.spellcheck = false;
+        inp.maxLength = 1;
+        inp.setAttribute('aria-label', `Sel ${r+1},${c+1}`);
+
+        inp.addEventListener('input', () => {
+          // Allow only digits 1-9
+          if (inp.readOnly) return;
+
+          const raw = inp.value;
+          const m = raw.match(/[1-9]/);
+          inp.value = m ? m[0] : '';
+        });
+
+        inp.addEventListener('keydown', (e) => {
+          if (inp.readOnly) return;
+          const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'];
+          if (allowed.includes(e.key)) return;
+
+          // Block non 1-9 keys
+          if (!/^[1-9]$/.test(e.key)) {
+            // allow ctrl/cmd shortcuts
+            if (e.ctrlKey || e.metaKey) return;
+            e.preventDefault();
+          }
+        });
+
+        cell.appendChild(inp);
+        boardEl.appendChild(cell);
+        inputs[r][c] = inp;
+      }
+    }
+  }
+
+  function renderPuzzle() {
+    clearBoardUI();
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const val = puzzle[r][c];
+        const inp = inputs[r][c];
+        if (val !== 0) {
+          inp.value = String(val);
+          inp.readOnly = true;
+          inp.classList.remove('wrong', 'right');
+        } else {
+          inp.value = '';
+          inp.readOnly = false;
+          inp.classList.remove('wrong', 'right');
+        }
+      }
+    }
+    setStatus('Puzzle berhasil dibuat. Silakan isi angka 1–9.', null);
+  }
+
+  function readUserGrid() {
+    const g = Array.from({ length: N }, () => Array(N).fill(0));
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const v = inputs[r][c].value;
+        g[r][c] = v ? Number(v) : 0;
+      }
+    }
+    return g;
+  }
+
+  function checkAnswer() {
+    if (!puzzle || !solution) return;
+
+    const user = readUserGrid();
+    let allFilled = true;
+    let wrongCount = 0;
+    let rightCount = 0;
+
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const inp = inputs[r][c];
+        const u = user[r][c];
+
+        if (puzzle[r][c] !== 0) {
+          // given cells are locked; still compare for consistency
+          if (u === 0) allFilled = false;
+          inp.classList.remove('wrong', 'right');
+          continue;
+        }
+
+        if (u === 0) {
+          allFilled = false;
+          inp.classList.remove('wrong', 'right');
+          continue;
+        }
+
+        if (u === solution[r][c]) {
+          rightCount++;
+          inp.classList.add('right');
+          inp.classList.remove('wrong');
+        } else {
+          wrongCount++;
+          inp.classList.add('wrong');
+          inp.classList.remove('right');
+        }
+      }
+    }
+
+    if (!allFilled) {
+      setStatus('Masih ada sel kosong. Isi semua sel kosong lalu cek lagi.', 'bad');
+      return;
+    }
+
+    if (wrongCount === 0) {
+      setStatus('Semua benar! 🎉', 'good');
+    } else {
+      setStatus(`Ada ${wrongCount} yang salah. Coba perbaiki.`, 'bad');
+    }
+  }
+
+  function generateNewPuzzle() {
+    // Minimal UX: disable buttons during generation
+    btnGenerate.disabled = true;
+    btnCheck.disabled = true;
+    setStatus('Menghasilkan puzzle... (bisa memakan waktu sebentar)', null);
+
+    try {
+      const solved = generateSolvedBoard();
+
+      // Choose difficulty by number of clues.
+      // More removed cells => harder. Keep target reasonable for quick generation.
+      const targetClues = 30; // adjust if you want harder/easier
+
+      const p = makePuzzleFromSolution(solved, targetClues);
+
+      solution = solved;
+      puzzle = p;
+      renderPuzzle();
+    } catch (e) {
+      console.error(e);
+      setStatus('Gagal membuat puzzle. Refresh halaman lalu coba lagi.', 'bad');
+    } finally {
+      btnGenerate.disabled = false;
+      btnCheck.disabled = false;
+    }
+  }
+
+  btnGenerate.addEventListener('click', generateNewPuzzle);
+  btnCheck.addEventListener('click', checkAnswer);
+
+  // Init
+  buildBoardUI();
+  generateNewPuzzle();
+})();
+</script>
+</body>
+</html>
